@@ -1,4 +1,6 @@
-"Smart AI Planning for Budget-Friendly Group Trips"
+# AURA V-SAGE BudgetTrip Planner
+
+> "Smart AI Planning for Budget-Friendly Group Trips"
 
 AURA V-SAGE is a modern, AI-powered web application designed to help users plan budget-friendly group trips effortlessly. Built with React, TypeScript, and Firebase, it features a sleek, animated user interface and robust authentication.
 
