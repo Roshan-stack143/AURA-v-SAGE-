@@ -1,0 +1,166 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches Auth UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - createdAt: timestamp (required)
+    //   - lastLogin: timestamp (required)
+    //
+    // Collection: tripPlans
+    // Document ID: {planId}
+    // Fields:
+    //   - userId: string (required)
+    //   - totalTripBudget: number (required)
+    //   - numberOfPeople: number (required)
+    //   - numberOfDays: number (required)
+    //   - departureCity: string (required)
+    //   - destinationPreference: string (optional)
+    //   - destinationCategory: string (optional)
+    //   - plan: map (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt', 'lastLogin']) &&
+             data.uid == request.auth.uid &&
+             isValidEmail(data.email) &&
+             data.uid.size() < 128 &&
+             data.email.size() < 256;
+    }
+
+    function isValidTripPlan(data) {
+      return data.keys().hasAll(['userId', 'totalTripBudget', 'numberOfPeople', 'numberOfDays', 'departureCity', 'plan', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.totalTripBudget is number &&
+             data.numberOfPeople is number &&
+             data.numberOfDays is number &&
+             data.departureCity is string &&
+             data.plan is map &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidEventPlan(data) {
+      return data.keys().hasAll(['userId', 'eventType', 'budget', 'guests', 'location', 'plan', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.eventType is string &&
+             data.budget is number &&
+             data.guests is number &&
+             data.location is string &&
+             data.plan is map &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['userId', 'authorName', 'caption', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.authorName is string && data.authorName.size() < 100 &&
+             data.caption is string && data.caption.size() < 2000 &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 1000000)) &&
+             (!('likes' in data) || data.likes is list) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['postId', 'userId', 'authorName', 'text', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.authorName is string && data.authorName.size() < 100 &&
+             data.text is string && data.text.size() < 1000 &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidVlogHistory(data) {
+      return data.keys().hasAll(['userId', 'title', 'channel', 'thumbnail', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() < 200 &&
+             data.channel is string && data.channel.size() < 100 &&
+             data.thumbnail is string && data.thumbnail.size() < 1000 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false; // Users cannot delete their profiles via app
+    }
+
+    match /tripPlans/{planId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidTripPlan(request.resource.data);
+      allow update: if false; 
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /eventPlans/{planId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidEventPlan(request.resource.data);
+      allow update: if false; 
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /vlogHistory/{historyId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && isValidVlogHistory(request.resource.data);
+      allow update: if false; 
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (isDocOwner() && isValidPost(request.resource.data)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && 
+         request.resource.data.likes is list)
+      );
+      allow delete: if isDocOwner();
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isValidComment(request.resource.data);
+        allow update: if false;
+        allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

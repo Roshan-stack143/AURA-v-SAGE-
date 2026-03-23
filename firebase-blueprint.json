@@ -1,0 +1,101 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "User profile photo URL" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" },
+        "lastLogin": { "type": "string", "format": "date-time", "description": "Last login timestamp" }
+      },
+      "required": ["uid", "email"]
+    },
+    "TripPlan": {
+      "title": "Trip Plan",
+      "description": "A generated trip plan",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner's UID" },
+        "totalTripBudget": { "type": "number" },
+        "numberOfPeople": { "type": "number" },
+        "numberOfDays": { "type": "number" },
+        "departureCity": { "type": "string" },
+        "destinationPreference": { "type": "string" },
+        "destinationCategory": { "type": "string" },
+        "plan": { "type": "object", "description": "The full JSON plan from Gemini" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "plan", "createdAt"]
+    },
+    "EventPlan": {
+      "title": "Event Plan",
+      "description": "A generated event plan",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner's UID" },
+        "eventType": { "type": "string" },
+        "budget": { "type": "number" },
+        "guests": { "type": "number" },
+        "location": { "type": "string" },
+        "plan": { "type": "object", "description": "The full JSON plan from Gemini" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "plan", "createdAt"]
+    },
+    "Post": {
+      "title": "Community Post",
+      "description": "A post shared by a user in the community feed",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "caption": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "authorName", "caption", "createdAt"]
+    },
+    "Comment": {
+      "title": "Post Comment",
+      "description": "A comment on a community post",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "userId", "authorName", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/tripPlans/{planId}": {
+      "schema": "TripPlan",
+      "description": "Saved trip plans"
+    },
+    "/eventPlans/{planId}": {
+      "schema": "EventPlan",
+      "description": "Saved event plans"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Community posts"
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments on a post"
+    }
+  }
+}
